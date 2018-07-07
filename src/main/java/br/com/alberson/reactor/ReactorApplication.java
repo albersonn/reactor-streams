@@ -43,6 +43,9 @@ public class ReactorApplication {
         Flux<StreamProducer.Disponibilidade> flux = new StreamProducer().disponibilidadeFlux();
         flux.subscribe(d -> producer.send(new ProducerRecord<>(DISPONIBILIDADE, d.getCorrelationId(), d)));
 
+
+        // Aqui é a POC que o consumer simplesmente ignora as mensagens que foram filtradas e não deixa o outro consumir.
+        // O esperado seria que cada um consumisse os seus mas que todos os 10 sejam consumidos.
         StreamConsumer evenConsumer = new StreamConsumer((k, v) -> v.getCorrelationId() % 2 == 0);
         StreamConsumer oddConsumer = new StreamConsumer((k, v) -> v.getCorrelationId() % 2 != 0);
 
