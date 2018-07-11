@@ -11,6 +11,7 @@ import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -21,24 +22,28 @@ public class StreamProducer {
     private static final Logger LOG = LoggerFactory.getLogger(StreamProducer.class);
 
     public Flux<Disponibilidade> disponibilidadeFlux() {
-        Flux<Disponibilidade> flux1 = obterFluxDisponibilidade(1000);
-        Flux<Disponibilidade> flux2 = obterFluxDisponibilidade(700);
-        Flux<Disponibilidade> flux3 = obterFluxDisponibilidade(300);
-        Flux<Disponibilidade> flux4 = obterFluxDisponibilidade(400);
-        Flux<Disponibilidade> flux5 = obterFluxDisponibilidade(500);
 
-        return flux1.mergeWith(flux2).mergeWith(flux3).mergeWith(flux4).mergeWith(flux5);
+        List<Flux<Disponibilidade>> fluxes = Arrays.asList(obterFluxDisponibilidade(1000),
+                obterFluxDisponibilidade(700),
+                obterFluxDisponibilidade(300),
+                obterFluxDisponibilidade(400),
+                obterFluxDisponibilidade(200),
+                obterFluxDisponibilidade(150),
+                obterFluxDisponibilidade(350),
+                obterFluxDisponibilidade(500));
+
+        return fluxes.stream().reduce(Flux.empty(), Flux::mergeWith);
     }
 
 
     private Flux<Disponibilidade> obterFluxDisponibilidade(final int milis) {
-        return Flux.fromIterable(tenDisps())
+        return Flux.fromIterable(disps())
                 .delayElements(Duration.ofMillis(milis));
     }
 
-    private List<Disponibilidade> tenDisps() {
+    private List<Disponibilidade> disps() {
         ArrayList<Disponibilidade> list = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < ThreadLocalRandom.current().nextInt(0,50); i++) {
             list.add(new Disponibilidade(gerarId()));
         }
         return list;

@@ -13,8 +13,11 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Predicate;
+import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.TopicProcessor;
+import reactor.util.concurrent.WaitStrategy;
 
 import java.util.HashMap;
 import java.util.Properties;
@@ -28,14 +31,19 @@ public class StreamConsumer implements Runnable{
     @NonNull
     private Predicate<? super String, ? super StreamProducer.Disponibilidade> filterPredicate;
     private final DisponibilidadeDao disponibilidadeDao;
+    private final Subscriber<StreamProducer.Disponibilidade> subscriber;
 
-    public StreamConsumer(Predicate<? super String, ? super StreamProducer.Disponibilidade> filterPredicate, DisponibilidadeDao disponibilidadeDao) {
-        this(disponibilidadeDao);
+    public StreamConsumer(Predicate<? super String, ? super StreamProducer.Disponibilidade> filterPredicate,
+                          DisponibilidadeDao disponibilidadeDao,
+                          Subscriber<StreamProducer.Disponibilidade> subscriber) {
+        this(disponibilidadeDao, subscriber);
         this.filterPredicate = filterPredicate;
     }
 
-    public StreamConsumer(DisponibilidadeDao disponibilidadeDao) {
+    public StreamConsumer(DisponibilidadeDao disponibilidadeDao,
+                          Subscriber<StreamProducer.Disponibilidade> subscriber) {
         this.disponibilidadeDao = disponibilidadeDao;
+        this.subscriber = subscriber;
         config = new Properties();
         config.put(StreamsConfig.APPLICATION_ID_CONFIG, "reactor_app");
         config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
@@ -55,7 +63,7 @@ public class StreamConsumer implements Runnable{
 
         disponibilidadeStream.peek((k, v) -> {
             LOG.info("Capturei o numero [{}]", v.getCorrelationId());
-            this.disponibilidadeDao.delete(v);
+            this.subscriber.onNext(v);
         });
 
         KafkaStreams streams = new KafkaStreams(builder.build(), config);

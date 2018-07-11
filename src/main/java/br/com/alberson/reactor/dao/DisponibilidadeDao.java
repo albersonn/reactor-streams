@@ -4,26 +4,26 @@ import br.com.alberson.reactor.producer.StreamProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DisponibilidadeDao {
 
     private static final Logger LOG = LoggerFactory.getLogger(DisponibilidadeDao.class);
 
-    private final List<StreamProducer.Disponibilidade> data = new ArrayList<>();
+    private final Map<String, StreamProducer.Disponibilidade> data = new HashMap<>();
 
     public synchronized void add(StreamProducer.Disponibilidade disponibilidade) {
-        this.data.add(disponibilidade);
+        this.data.put(disponibilidade.getCorrelationId(), disponibilidade);
         logDangling();
     }
 
     public synchronized void delete(StreamProducer.Disponibilidade disponibilidade) {
-        this.data.remove(disponibilidade);
+        this.data.remove(disponibilidade.getCorrelationId());
         logDangling();
     }
 
     public synchronized void logDangling() {
-        LOG.info("*************************** Existem [" + data.size() + "] disponibilidades órfãs. ***************************");
+        LOG.info("*************************** Existem [" + data.values().size() + "] disponibilidades órfãs. ***************************");
     }
 }
