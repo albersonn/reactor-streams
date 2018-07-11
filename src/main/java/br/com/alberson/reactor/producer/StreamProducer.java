@@ -11,6 +11,8 @@ import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Component
@@ -19,29 +21,41 @@ public class StreamProducer {
     private static final Logger LOG = LoggerFactory.getLogger(StreamProducer.class);
 
     public Flux<Disponibilidade> disponibilidadeFlux() {
-//        return Flux.<Disponibilidade>generate(sink -> sink.next(new Disponibilidade(gerarId())))
-//                .delayElements(Duration.ofSeconds(1));
+        Flux<Disponibilidade> flux1 = obterFluxDisponibilidade(1000);
+        Flux<Disponibilidade> flux2 = obterFluxDisponibilidade(700);
+        Flux<Disponibilidade> flux3 = obterFluxDisponibilidade(300);
+        Flux<Disponibilidade> flux4 = obterFluxDisponibilidade(400);
+        Flux<Disponibilidade> flux5 = obterFluxDisponibilidade(500);
 
-        ArrayList<Disponibilidade> disps = new ArrayList<>();
-        for (long i = 0; i < 11; i++) {
-            disps.add(new Disponibilidade(i));
-        }
-
-        return Flux.fromIterable(disps);
+        return flux1.mergeWith(flux2).mergeWith(flux3).mergeWith(flux4).mergeWith(flux5);
     }
 
-//    private Long gerarId() {
-//        long i = ThreadLocalRandom.current().nextLong(1655435756156L, 1655435756356L);
-//        boolean impar = i % 2L != 0;
-//        LOG.info("Gerando número [" + (impar ? "ÍMPAR" : "PAR") + "]: [" + i + "]");
-//        return i;
-//    }
+
+    private Flux<Disponibilidade> obterFluxDisponibilidade(final int milis) {
+        return Flux.fromIterable(tenDisps())
+                .delayElements(Duration.ofMillis(milis));
+    }
+
+    private List<Disponibilidade> tenDisps() {
+        ArrayList<Disponibilidade> list = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            list.add(new Disponibilidade(gerarId()));
+        }
+        return list;
+    }
+
+    private String gerarId() {
+        String correlation = UUID.randomUUID().toString().replace("-", "");
+        String b = ThreadLocalRandom.current().nextBoolean() ? "1" : "0";
+        LOG.info("Gerando correlation [" + b + correlation + "]");
+        return b + correlation;
+    }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Disponibilidade {
         @NonNull
-        private Long correlationId;
+        private String correlationId;
     }
 }

@@ -1,9 +1,9 @@
 package br.com.alberson.reactor.consumer;
 
+import br.com.alberson.reactor.dao.DisponibilidadeDao;
 import br.com.alberson.reactor.factory.SerdeFactory;
 import br.com.alberson.reactor.producer.StreamProducer;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
@@ -26,14 +26,16 @@ public class StreamConsumer implements Runnable{
     private final Properties config;
 
     @NonNull
-    private Predicate<? super Long, ? super StreamProducer.Disponibilidade> filterPredicate;
+    private Predicate<? super String, ? super StreamProducer.Disponibilidade> filterPredicate;
+    private final DisponibilidadeDao disponibilidadeDao;
 
-    public StreamConsumer(Predicate<? super Long, ? super StreamProducer.Disponibilidade> filterPredicate) {
-        this();
+    public StreamConsumer(Predicate<? super String, ? super StreamProducer.Disponibilidade> filterPredicate, DisponibilidadeDao disponibilidadeDao) {
+        this(disponibilidadeDao);
         this.filterPredicate = filterPredicate;
     }
 
-    private StreamConsumer() {
+    public StreamConsumer(DisponibilidadeDao disponibilidadeDao) {
+        this.disponibilidadeDao = disponibilidadeDao;
         config = new Properties();
         config.put(StreamsConfig.APPLICATION_ID_CONFIG, "reactor_app");
         config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
@@ -46,9 +48,15 @@ public class StreamConsumer implements Runnable{
 
         Serde<StreamProducer.Disponibilidade> disponibilidadeSerde = SerdeFactory.createSerde(StreamProducer.Disponibilidade.class, new HashMap<>());
 
-        KStream<Long, StreamProducer.Disponibilidade> disponibilidadeStream = builder.stream("disponibilidade", Consumed.with(Serdes.Long(), disponibilidadeSerde));
-        disponibilidadeStream.filter(this.filterPredicate)
-                .peek((k, v) -> LOG.info("Capturei o numero [{}]", v.getCorrelationId()));
+        KStream<String, StreamProducer.Disponibilidade> disponibilidadeStream = builder.stream("disponibilidade", Consumed.with(Serdes.String(), disponibilidadeSerde));
+        if (this.filterPredicate != null) {
+            disponibilidadeStream.filter(this.filterPredicate);
+        }
+
+        disponibilidadeStream.peek((k, v) -> {
+            LOG.info("Capturei o numero [{}]", v.getCorrelationId());
+            this.disponibilidadeDao.delete(v);
+        });
 
         KafkaStreams streams = new KafkaStreams(builder.build(), config);
 
